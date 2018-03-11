@@ -5,6 +5,7 @@ import os
 import std_msgs
 import sys
 import time
+import argparse
 
 from perception import DepthImage, BinaryImage, ColorImage
 from gqcnn.msg import Observation, Action
@@ -25,7 +26,7 @@ class RosGUI(QMainWindow):
     image_signal = pyqtSignal()
     success_signal = pyqtSignal(bool)
 
-    def __init__(self):
+    def __init__(self, screen):
         """Initialize the ROS GUI.
         """
         super(RosGUI, self).__init__()
@@ -62,8 +63,13 @@ class RosGUI(QMainWindow):
         # Initialize ROS subscribers
         self._init_subscribers()
 
+        desktop = QApplication.desktop()
+        if screen > desktop.screenCount():
+            print 'Screen index is greater than number of available screens; using default screen'
+        screenRect = desktop.screenGeometry(screen)
+        self.move(screenRect.topLeft())
         self.setWindowFlags(Qt.X11BypassWindowManagerHint)
-        self.setFixedSize(1920, 1080)
+        self.setFixedSize(screenRect.size())
         self.show()
 
     def set_weight(self, w):
@@ -463,6 +469,10 @@ class RosGUI(QMainWindow):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description='GUI for Dex-Net Visualization')
+    parser.add_argument('--screen', '-s', type=int, default=-1, help='screen number to display GUI on')
+    args = parser.parse_args()
+
     # Initialize ROS node
     rospy.init_node('RosGUI', anonymous=True)
 
@@ -470,5 +480,5 @@ if __name__ == "__main__":
     QApplication.setStyle("Motif")
     app = QApplication(sys.argv) 
     app.setStyleSheet('QMainWindow{background-color: white}')
-    ex = RosGUI()
+    ex = RosGUI(args.screen)
     sys.exit(app.exec_())
