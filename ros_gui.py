@@ -62,7 +62,9 @@ class RosGUI(QMainWindow):
         # Initialize ROS subscribers
         self._init_subscribers()
 
-        self.showFullScreen()
+        self.setWindowFlags(Qt.X11BypassWindowManagerHint)
+        self.setFixedSize(1920, 1080)
+        self.show()
 
     def set_weight(self, w):
         """Set the weight field of the GUI.
@@ -458,9 +460,6 @@ class RosGUI(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(top_layout)
         self.setCentralWidget(central_widget)
-
-        self.setFixedSize(1920, 1080)
-
 
 if __name__ == "__main__":
 
