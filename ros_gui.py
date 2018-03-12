@@ -235,6 +235,9 @@ class RosGUI(QMainWindow):
 
         # Reset on pause
         if state == 'pause':
+            self._total_time = 0
+            self._n_attempts = 0
+            self._n_picks = 0
             self._weight_initialized = False
             self.weight_signal.emit(0)
             self.success_signal.emit(True)
