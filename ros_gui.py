@@ -164,7 +164,8 @@ class RosGUI(QMainWindow):
             self._success_text.setText('SUCCESS')
             self._success_text.setStyleSheet("border: 0px; color: #000033")
         elif success == 2:
-            self._success_text.setText('')
+            self._success_text.setText('MOVING')
+            self._success_text.setStyleSheet("border: 0px; color: #000033")
 
     def _init_subscribers(self):
         self._obs_sub = rospy.Subscriber('/bin_picking/observation', Observation, self._obs_callback)
