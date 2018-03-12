@@ -24,7 +24,7 @@ class RosGUI(QMainWindow):
     pph_signal = pyqtSignal(float)
     state_signal = pyqtSignal('QString')
     image_signal = pyqtSignal()
-    success_signal = pyqtSignal(bool)
+    success_signal = pyqtSignal(int)
 
     def __init__(self, screen):
         """Initialize the ROS GUI.
@@ -152,16 +152,19 @@ class RosGUI(QMainWindow):
 
         Parameters
         ----------
-        success : bool
-            If True, the most recent action was successful.
-            If False, it was a failure.
+        success : int
+            If 0, the most recent action was a failure.
+            If 1, the most recent action was successful.
+            If 2, the GUI should be cleared.
         """
-        if success:
-            self._success_text.setText('SUCCESS')
-            self._success_text.setStyleSheet("border: 0px; color: #000033")
-        else:
+        if success == 0:
             self._success_text.setText('FAILURE')
             self._success_text.setStyleSheet("border: 0px; color: white")
+        elif success == 1:
+            self._success_text.setText('SUCCESS')
+            self._success_text.setStyleSheet("border: 0px; color: #000033")
+        elif success == 2:
+            self._success_text.setText('')
 
     def _init_subscribers(self):
         self._obs_sub = rospy.Subscriber('/bin_picking/observation', Observation, self._obs_callback)
@@ -239,8 +242,10 @@ class RosGUI(QMainWindow):
         elif self._state == 'pause':
             self._start_time = time.time()
 
-        if self._state == 'sensing':
+        if state == 'sensing':
             self.conf_signal.emit(0.0)
+        if state == 'moving':
+            self.success_signal.emit(2)
 
         self._state = state
         self.state_signal.emit(state)
@@ -252,7 +257,7 @@ class RosGUI(QMainWindow):
         success = reward.data > 0
         if success:
             self._n_picks += 1
-        self.success_signal.emit(success)
+        self.success_signal.emit(int(success))
 
         # Update PPH
         runtime = time.time() - self._start_time
