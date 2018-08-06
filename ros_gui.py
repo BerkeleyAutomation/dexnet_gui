@@ -6,6 +6,7 @@ import std_msgs
 import sys
 import time
 import argparse
+import skimage.exposure as se
 
 from perception import DepthImage, BinaryImage, ColorImage
 from gqcnn.msg import Observation, Action
@@ -13,6 +14,8 @@ from gqcnn.msg import Observation, Action
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+
+FLIP_IMAGE = True
 
 class RosGUI(QMainWindow):
     """A graphical user interface for Dex-Net using PyQt4 and ROS.
@@ -176,14 +179,24 @@ class RosGUI(QMainWindow):
 
     def _obs_callback(self, obs):
         depth_image = DepthImage(np.array(obs.image_data).reshape((obs.height, obs.width)))
-        color_image = depth_image.inpaint(rescale_factor=0.25).to_color()
+        depth_image = depth_image.inpaint(rescale_factor=0.25)
+        eq_depth = se.equalize_hist(depth_image.data)
+        if FLIP_IMAGE:
+            eq_depth = np.flipud(eq_depth)
+            eq_depth = np.fliplr(eq_depth)
+        depth_image = DepthImage(eq_depth)
+        color_image = depth_image.to_color(normalize=True)
         self._current_image = color_image
         self.image_signal.emit()
 
     def _action_callback(self, action):
         # Update image with binary mask
         binary_data = np.frombuffer(action.mask_data, dtype=np.uint8).reshape(action.height, action.width)
+        if FLIP_IMAGE:
+            binary_data = np.flipud(binary_data)
+            binary_data = np.fliplr(binary_data)            
         binary_image = BinaryImage(binary_data)
+            
         mask = binary_image.nonzero_pixels()
         self._current_image.data[mask[:,0], mask[:,1], :] = (0.3 * self._current_image.data[mask[:,0], mask[:,1], :] +
                                                              0.7 * np.array([200, 30, 30], dtype=np.uint8))
@@ -199,10 +212,19 @@ class RosGUI(QMainWindow):
                 angle = np.rad2deg(np.arctan((axis[1] / axis[0])))
             else:
                 angle = 90
+
+            if FLIP_IMAGE:
+                location = np.array([self._current_image.width-action_data[0],
+                                     self._current_image.height-action_data[1]], dtype=np.uint32)
+                angle = angle + 180
+                
             jaw_image = ColorImage(imutils.rotate_bound(self._jaw_image.data, angle))
             self._current_image = self._overlay_image(self._current_image, jaw_image, location)
         elif action_type == 'suction':
             location = np.array([action_data[0], action_data[1]], dtype=np.uint32)
+            if FLIP_IMAGE:
+                location = np.array([self._current_image.width-action_data[0],
+                                     self._current_image.height-action_data[1]], dtype=np.uint32)
             self._current_image = self._overlay_image(self._current_image, self._suction_image, location)
         elif action_type == 'push':
             start = np.array([action_data[0], action_data[1]], dtype=np.int32)
@@ -218,6 +240,14 @@ class RosGUI(QMainWindow):
                 angle = np.rad2deg(np.arctan2(axis[1], axis[0]))
             else:
                 angle = (90.0 if axis[1] > 0 else -90.0)
+
+            if FLIP_IMAGE:
+                start = np.array([self._current_image.width-action_data[0],
+                                  self._current_image.height-action_data[1]], dtype=np.int32)
+                end = np.array([self._current_image.width-action_data[2],
+                                self._current_image.height-action_data[3]], dtype=np.int32)
+                angle = angle + 180.0
+                
             start_image = ColorImage(imutils.rotate_bound(self._push_image.data, angle))
             end_image = ColorImage(imutils.rotate_bound(self._push_end_image.data, angle))
 
